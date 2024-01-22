@@ -1,7 +1,5 @@
-const repl = require('repl');
+const getRandomNumber = () => console.log(Math.random());
 
-const getRandomNumber = () => Math.random();
+getRandomNumber();
 
-const replServer = repl.start();
-
-replServer.context.getRandomNumber = getRandomNumber;
+module.exports = getRandomNumber;
