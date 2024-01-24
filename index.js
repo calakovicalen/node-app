@@ -46,6 +46,6 @@ setInterval(() => {
 }, 60000);
 
 setInterval(() => {
-  process.stdout.write(`${stdoutValue}\r`);
   execProcess(commandValue);
+  process.stdout.write(`${stdoutValue}\r`);
 }, 1000);
