@@ -18,7 +18,7 @@ const currentDateTime = getCurrentDateTime();
 
 /* Defines command value based on operating system */
 const commandValue =
-  os.platform() === 'win32' || 'win64'
+  os.platform() === 'win32' || os.platform() === 'win64'
     ? `powershell "Get-Process | Sort-Object CPU -Descending | Select-Object -Property Name, CPU, WorkingSet -First 1 | ForEach-Object { $_.Name + ' ' + $_.CPU + ' ' + $_.WorkingSet }"`
     : `ps -A -o %cpu,%mem,comm | sort -nr | head -n 1`;
 
