@@ -1,51 +1,130 @@
-const childProcess = require('child_process');
-const os = require('os');
-const fs = require('fs');
+/* TASK 1 */
 
-function getCurrentDateTime() {
-  const now = new Date();
-  const day = now.getDate().toString().padStart(2, '0');
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const year = now.getFullYear();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const seconds = now.getSeconds().toString().padStart(2, '0');
+class EventEmitter {
+  listeners = {};
 
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  addListener(eventName, fn) {
+    return this.on(eventName, fn);
+  }
+
+  on(eventName, fn) {
+    if (!this.listeners[eventName]) {
+      this.listeners[eventName] = [];
+    }
+    this.listeners[eventName].push(fn);
+  }
+
+  removeListener(eventName, fn) {
+    return this.off(eventName, fn);
+  }
+
+  off(eventName, fn) {
+    const eventListeners = this.listeners[eventName];
+    if (eventListeners) {
+      this.listeners[eventName] = eventListeners.filter(
+        listener => listener !== fn
+      );
+    }
+  }
+
+  once(eventName, fn) {
+    const onceWrapper = (...args) => {
+      fn(...args);
+      this.off(eventName, onceWrapper);
+    };
+    this.on(eventName, onceWrapper);
+  }
+
+  emit(eventName, ...args) {
+    const eventListeners = this.listeners[eventName];
+    if (eventListeners) {
+      for (const listener of eventListeners) {
+        listener(...args);
+      }
+    }
+  }
+
+  listenerCount(eventName) {
+    const eventListeners = this.listeners[eventName];
+    return eventListeners ? eventListeners.length : 0;
+  }
+
+  rawListeners(eventName) {
+    return this.listeners[eventName] || [];
+  }
 }
 
-const currentDateTime = getCurrentDateTime();
+const myEmitter = new EventEmitter();
 
-/* Defines command value based on operating system */
-const commandValue =
-  os.platform() === 'win32' || os.platform() === 'win64'
-    ? `powershell "Get-Process | Sort-Object CPU -Descending | Select-Object -Property Name, CPU, WorkingSet -First 1 | ForEach-Object { $_.Name + ' ' + $_.CPU + ' ' + $_.WorkingSet }"`
-    : `ps -A -o %cpu,%mem,comm | sort -nr | head -n 1`;
+function c1() {
+  console.log('an event occurred!');
+}
 
-let stdoutValue = ``;
+function c2() {
+  console.log('yet another event occurred!');
+}
 
-/* Runs shell command to see which process uses CPU and memory the most */
-const execProcess = command => {
-  childProcess.exec(command, (error, stdout, stderr) => {
-    if (error !== null) {
-      process.stderr.write(`${error}`);
+myEmitter.on('eventOne', c1);
+myEmitter.on('eventOne', c2);
+
+myEmitter.once('eventOnce', () => console.log('eventOnce once fired'));
+myEmitter.once('init', () => console.log('init once fired'));
+
+myEmitter.on('status', (code, msg) => console.log(`Got ${code} and ${msg}`));
+
+myEmitter.emit('eventOne');
+myEmitter.emit('eventOnce');
+myEmitter.emit('eventOne');
+myEmitter.emit('init');
+myEmitter.emit('init');
+myEmitter.emit('eventOne');
+myEmitter.emit('status', 200, 'ok');
+
+console.log(myEmitter.listenerCount('eventOne'));
+console.log(myEmitter.rawListeners('eventOne'));
+
+myEmitter.off('eventOne', c1);
+console.log(myEmitter.listenerCount('eventOne'));
+
+myEmitter.off('eventOne', c2);
+console.log(myEmitter.listenerCount('eventOne'));
+
+/* TASK 2 */
+class WithTime extends EventEmitter {
+  async execute(asyncFunc, ...args) {
+    this.emit('begin');
+
+    const startTime = Date.now();
+
+    try {
+      const data = await asyncFunc(...args);
+      const endTime = Date.now();
+
+      this.emit('end');
+      this.emit('data', data);
+      console.log(`Time taken: ${endTime - startTime}ms`);
+    } catch (error) {
+      this.emit('end');
+      this.emit('error', error);
     }
+  }
+}
 
-    stdoutValue = stdout.trim();
-  });
+const withTime = new WithTime();
+
+withTime.on('begin', () => console.log('About to execute'));
+withTime.on('end', () => console.log('Done with execute'));
+withTime.on('data', data => console.log('Received data:', data));
+withTime.on('error', error => console.error('Error:', error));
+
+console.log(withTime.rawListeners('end'));
+console.log(withTime.rawListeners('data'));
+console.log(withTime.rawListeners('error'));
+
+const asyncFunction = async () => {
+  const response = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+  const data = await response.json();
+  return data;
 };
 
-/* Saves log to file every 1 minute */
-setInterval(() => {
-  const logValue = `${currentDateTime} : ${stdoutValue}\n`;
-
-  fs.appendFile('activityMonitor.log', logValue, err => {
-    if (err) throw err;
-    console.log('Saved to log!');
-  });
-}, 60000);
-
-setInterval(() => {
-  process.stdout.write(`${stdoutValue}\r`);
-  execProcess(commandValue);
-}, 1000);
+withTime.execute(asyncFunction);
